@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>迷宮塗格子</title>
+<style>
+  body {
+    margin: 0;
+    background: #f4f6f8;
+    color: #333;
+    font-family: system-ui;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #ui {
+    margin: 12px;
+  }
+
+  button {
+    margin: 0 4px;
+    padding: 6px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    background: #fff;
+  }
+
+  #inkBar {
+    width: 320px;
+    height: 14px;
+    background: #ddd;
+    border-radius: 7px;
+    overflow: hidden;
+    margin-bottom: 8px;
+  }
+
+  #ink {
+    height: 100%;
+    background: #3cff00;
+    width: 100%;
+  }
+
+  canvas {
+    background: #ffffff;
+    cursor: crosshair;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+
+  #message {
+    margin-top: 8px;
+    height: 1.5em;
+    color: #555;
+  }
+</style>
+</head>
+<body>
+
+<div id="ui">
+  <button onclick="setDifficulty('easy')">簡單</button>
+  <button onclick="setDifficulty('normal')">普通</button>
+  <button onclick="setDifficulty('hard')">困難</button>
+  <button onclick="restart()">重新開始</button>
+</div>
+
+<div id="inkBar"><div id="ink"></div></div>
+
+<canvas id="game" width="600" height="600"></canvas>
+<div id="message"></div>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const inkBar = document.getElementById("ink");
+const message = document.getElementById("message");
+
+const DIFFICULTY = {
+  easy:   { size: 15, factor: 0.55 },
+  normal: { size: 21, factor: 0.42 },
+  hard:   { size: 31, factor: 0.30 }
+};
+
+let currentDifficulty = "easy";
+let size, cellSize;
+let maze;
+let startCell, endCell;
+
+let path = [];
+let ink = 0;
+let maxInk = 0;
+let visitCount = [];
+
+let isDrawing = false;
+let hasStarted = false;
+
+/* ---------- 控制 ---------- */
+
+function setDifficulty(d) {
+  currentDifficulty = d;
+  startGame();
+}
+
+function restart() {
+  startGame();
+}
+
+/* ---------- 初始化 ---------- */
+
+function startGame() {
+  const d = DIFFICULTY[currentDifficulty];
+  size = d.size;
+  maxInk = Math.floor(d.size * d.size * d.factor);
+  ink = maxInk;
+
+  cellSize = canvas.width / size;
+  maze = generateMaze(size);
+
+  startCell = { x: 1, y: 1 };
+  endCell = { x: size - 2, y: size - 2 };
+
+  path = [];
+  visitCount = Array.from({length:size}, () => Array(size).fill(0));
+
+  hasStarted = false;
+  isDrawing = false;
+
+  updateInk();
+  message.textContent = "從箭頭開始拖動";
+  draw();
+}
+
+/* ---------- 迷宮 ---------- */
+
+function generateMaze(n) {
+  const m = Array.from({ length: n }, () => Array(n).fill(1));
+
+  function carve(x, y) {
+    m[y][x] = 0;
+    for (const [dx, dy] of shuffle([[1,0],[-1,0],[0,1],[0,-1]])) {
+      const nx = x + dx * 2;
+      const ny = y + dy * 2;
+      if (nx > 0 && ny > 0 && nx < n - 1 && ny < n - 1 && m[ny][nx] === 1) {
+        m[y + dy][x + dx] = 0;
+        carve(nx, ny);
+      }
+    }
+  }
+  carve(1,1);
+  return m;
+}
+
+function shuffle(a) {
+  return a.sort(() => Math.random() - 0.5);
+}
+
+/* ---------- 滑鼠 ---------- */
+
+canvas.addEventListener("mousedown", e => {
+  const cell = getCell(e);
+
+  if (!hasStarted) {
+    if (!sameCell(cell, startCell)) return;
+    path.push(startCell);
+    visitCount[startCell.y][startCell.x]++;
+    hasStarted = true;
+    ink = maxInk;
+    message.textContent = "";
+  }
+
+  isDrawing = true;
+  updateInk();
+  draw();
+});
+
+canvas.addEventListener("mousemove", e => {
+  if (!isDrawing || ink <= 0) return;
+
+  const cell = getCell(e);
+  const last = path[path.length - 1];
+
+  // 不能穿牆
+  if (!maze[cell.y] || maze[cell.y][cell.x] === 1) return;
+
+  // 正常相鄰或斜角容錯
+  let next = null;
+  if (isAdjacent(cell, last)) {
+    next = cell;
+  } else {
+    const forgiven = getForgivenStep(last, cell);
+    if (forgiven) next = forgiven;
+  }
+
+  if (next) {
+    path.push(next);
+    visitCount[next.y][next.x]++;
+    ink--;
+    updateInk();
+    draw();
+    checkState();
+  }
+});
+
+canvas.addEventListener("mouseup", () => {
+  isDrawing = false;
+});
+
+/* ---------- 斜角容錯 ---------- */
+
+function getForgivenStep(from, to) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  if (Math.abs(dx) === 1 && Math.abs(dy) === 1) {
+    const option1 = { x: from.x + dx, y: from.y };
+    const option2 = { x: from.x, y: from.y + dy };
+    if (maze[option1.y]?.[option1.x] === 0) return option1;
+    if (maze[option2.y]?.[option2.x] === 0) return option2;
+  }
+  return null;
+}
+
+/* ---------- 判斷 ---------- */
+
+function checkState() {
+  const p = path[path.length - 1];
+
+  if (sameCell(p, endCell)) {
+    message.textContent = "✔ 到達出口（同難度再來）";
+    endRound();
+  } else if (ink <= 0) {
+    message.textContent = "墨水用完（可以按重新開始）";
+    isDrawing = false; // 停止畫線
+    hasStarted = true; // 保留路徑
+  }
+}
+
+function endRound() {
+  isDrawing = false;
+  hasStarted = false;
+  setTimeout(startGame, 900);
+}
+
+/* ---------- 工具 ---------- */
+
+function getCell(e) {
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: Math.floor((e.clientX - r.left) / cellSize),
+    y: Math.floor((e.clientY - r.top) / cellSize)
+  };
+}
+
+function isAdjacent(a, b) {
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y) === 1;
+}
+
+function sameCell(a, b) {
+  return a.x === b.x && a.y === b.y;
+}
+
+function updateInk() {
+  inkBar.style.width = (ink / maxInk * 100) + "%";
+}
+
+/* ---------- 繪圖 ---------- */
+
+function draw() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // 牆
+  for (let y=0;y<size;y++) {
+    for (let x=0;x<size;x++) {
+      if (maze[y][x] === 1) {
+        ctx.fillStyle = "#cfd8dc";
+        ctx.fillRect(x*cellSize, y*cellSize, cellSize, cellSize);
+      }
+    }
+  }
+
+  // 走過的格子 → 顏色明顯
+  for (let y=0;y<size;y++) {
+    for (let x=0;x<size;x++) {
+      if (visitCount[y][x] > 0) {
+        const alpha = Math.min(0.5 + 0.15*(visitCount[y][x]-1), 1);
+        ctx.fillStyle = `rgba(50,255,50,${alpha})`;
+        ctx.fillRect(x*cellSize, y*cellSize, cellSize, cellSize);
+      }
+    }
+  }
+
+  // 終點
+  ctx.fillStyle = "#ffb74d";
+  ctx.fillRect(
+    endCell.x*cellSize,
+    endCell.y*cellSize,
+    cellSize,
+    cellSize
+  );
+
+  // 起點箭頭
+  if (!hasStarted) drawStartArrow();
+}
+
+function drawStartArrow() {
+  const cx = startCell.x*cellSize + cellSize/2;
+  const cy = startCell.y*cellSize + cellSize/2;
+  const s = cellSize / 3;
+  ctx.fillStyle = "#42a5f5";
+  ctx.beginPath();
+  ctx.moveTo(cx - s/2, cy - s);
+  ctx.lineTo(cx + s, cy);
+  ctx.lineTo(cx - s/2, cy + s);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/* ---------- 啟動 ---------- */
+
+startGame();
+</script>
+
+</body>
+</html>
