@@ -1,139 +1,467 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
+  
 <meta charset="UTF-8">
-<title>迷宮塗格子</title>
-<style>
-  body {
-    margin: 0;
-    background: #f4f6f8;
-    color: #333;
-    font-family: system-ui;
-    display: flex;
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ink Maze</title>
+<style>   
+  
+body {
+  margin:0;
+  font-family:system-ui;
+  background:#0f1720;
+  overflow:hidden;
+  position:relative;
+  height:100vh;
+}
+#gameWrap {
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%, -50%);
+  display:none;
+  flex-direction:column;
+  align-items:center;
+  gap:12px;
+  z-index:100;
+}
+/* 齒輪按鈕 */
+#settingsBtn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 36px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: none;
+  background: rgba(66,165,245,0.3);
+  color: #42a5f5;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(66,165,245,0.5);
+  transition: all 0.2s;
+  z-index: 1000;
+}
+#settingsBtn:hover {
+  background: rgba(66,165,245,0.5);
+  transform: scale(1.1);
+}
+
+/* 設定選單 */
+#settingsMenu {
+  flex-direction: column;
+  gap: 20px;
+}
+#settingsMenu h2 {
+  font-size: 3rem;
+  margin-bottom: 20px;
+}
+/* 封面 */
+#titleScreen {
+  position:absolute;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  display:block;
+  background-image: url('cover.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+#menuPanel {
+  position:absolute;
+  left:50%;
+  bottom:9%;
+  transform:translateX(-50%);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:26px;
+  width:min(90vw, 900px);
+}
+
+/* 按鈕容器 - 難度按鈕 */
+#difficultyContainer {
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:20px;
+  width:100%;
+}
+
+.difficultyBtn {
+  padding: 10px 26px;
+  font-size: 20px;
+  font-weight: bold;
+  border-radius: 22px;
+  border: 2px solid #42a5f5;
+  color: #42a5f5;
+  background: rgba(245,242,242,0.6);
+  cursor: pointer;
+  text-shadow: 0 0 6px rgba(66,165,245,0.8);
+  box-shadow: 0 3px 10px rgba(66,165,245,0.4);
+  transition: all 0.2s;
+}
+
+.difficultyBtn:hover {
+  background: rgba(66,165,245,0.15);
+  transform: translateY(-1px);
+}
+
+.difficultyBtn.active {
+  background: #42a5f5;       /* 當前選中時藍底 */
+  color: white;
+  text-shadow: 0 0 8px rgba(255,255,255,0.8);
+  box-shadow: 0 6px 16px rgba(66,165,245,0.8);
+}
+
+/* 開始遊戲按鈕 */
+.startBtn {
+  padding:14px 56px;
+  font-size:24px;
+  border-radius:40px;
+  border:none;
+  background:#ff7043;
+  color:white;
+  cursor:pointer;
+  font-weight:bold;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+  transition: all 0.2s;
+}
+
+.startBtn:hover {
+  transform: translateY(-3px);
+}
+
+
+
+/* Canvas & UI */
+canvas {
+  display:block;
+  background:white;
+  border-radius:8px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.15);
+  touch-action:none;
+}
+
+#inkBar {
+  display:none;
+  width:720px;
+  height:18px;
+  background:#ddd;
+  border-radius:10px;
+  overflow:hidden;
+}
+#ink {
+  height:100%;
+  background: linear-gradient(270deg, red, orange, yellow, green, cyan, blue, violet);
+  background-size: 1400% 1400%;
+  animation: rainbow 4s linear infinite;
+  transition: width 0.1s linear;
+}
+@keyframes rainbow { 0% { background-position:0% 50%; } 100% { background-position:100% 50%; } }
+
+#message {
+  min-height:1.5em;
+  font-weight:bold;
+  color:white;
+  text-align:center;
+}
+
+#restartBtn {
+  display:none;
+  padding:10px 20px;
+  border-radius:6px;
+  border:1px solid #ccc;
+  cursor:pointer;
+  background:white;
+}
+
+/* Overlay 結束畫面 */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  color: white;
+  text-align: center;
+  transition: opacity 0.3s;
+}
+.overlay h1 { font-size: 4rem; margin: 0; letter-spacing: 3px; text-shadow:2px2px10px rgba(0,0,0,0.5);}
+.overlay p { font-size: 1.5rem; margin: 20px 0; }
+.primary-btn {
+  padding: 20px 60px;
+  font-size: 2rem;
+  border-radius:50px;
+  border:none;
+  background:#42a5f5;
+  color:white;
+  cursor:pointer;
+  margin-top:20px;
+  transition:all 0.2s;
+}
+.primary-btn:hover { transform: translateY(-2px); box-shadow:0 6px 16px rgba(0,0,0,0.3);}
+.hidden { display:none !important; }
+
+@media (max-width: 900px) {
+  #menuPanel {
+    bottom: 7%;
+    gap: 20px;
+    width: min(92vw, 700px);
+  }
+
+  #difficultyContainer {
+    gap: 12px;
+  }
+
+  .difficultyBtn {
+    padding: 8px 18px;
+    font-size: 18px;
+    border-radius: 18px;
+  }
+
+  .startBtn {
+    padding: 16px 64px;
+    font-size: 26px;
+    border-radius: 36px;
+  }
+
+  #settingsBtn {
+    top: 14px;
+    right: 14px;
+    font-size: 28px;
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 600px) {
+  #menuPanel {
+    bottom: 6%;
+    gap: 16px;
+    width: 92vw;
+  }
+
+  #titleScreen {
+  background-image: url('cover-mobile.png');
+  background-position: center top;
+}
+
+  #difficultyContainer {
     flex-direction: column;
-    align-items: center;
+    gap: 10px;
   }
 
-  #ui {
-    margin: 12px;
+  .difficultyBtn {
+    width: 170px;
+    padding: 10px 18px;
+    font-size: 18px;
+    border-radius: 18px;
   }
 
-  button {
-    margin: 0 4px;
-    padding: 6px 12px;
-    font-size: 14px;
-    cursor: pointer;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    background: #fff;
-  }
+  .startBtn {
+  padding:12px 40px;
+  font-size:20px;
+}
 
-  #inkBar {
-    width: 320px;
-    height: 14px;
-    background: #ddd;
-    border-radius: 7px;
-    overflow: hidden;
-    margin-bottom: 8px;
+  #settingsBtn {
+    top: 12px;
+    right: 12px;
+    font-size: 24px;
+    padding: 8px 10px;
   }
-
-  #ink {
-    height: 100%;
-    background: #3cff00;
-    width: 100%;
-  }
-
-  canvas {
-    background: #ffffff;
-    cursor: crosshair;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  }
-
-  #message {
-    margin-top: 8px;
-    height: 1.5em;
-    color: #555;
-  }
+}
 </style>
 </head>
 <body>
 
-<div id="ui">
-  <button onclick="setDifficulty('easy')">簡單</button>
-  <button onclick="setDifficulty('normal')">普通</button>
-  <button onclick="setDifficulty('hard')">困難</button>
-  <button onclick="restart()">重新開始</button>
+<!-- 封面 -->
+<div id="titleScreen">
+  <div id="menuPanel">
+    <div id="difficultyContainer">
+      <button class="difficultyBtn active" onclick="setDifficulty('easy')">Easy</button>
+      <button class="difficultyBtn" onclick="setDifficulty('normal')">Normal</button>
+      <button class="difficultyBtn" onclick="setDifficulty('hard')">Hard</button>
+    </div>
+    <button class="startBtn" onclick="startGame()">PLAY</button>
+  </div>
+</div>
+<!-- 齒輪按鈕 -->
+<button id="settingsBtn">⚙️</button>
+
+<!-- 設定選單 Overlay -->
+<div id="settingsMenu" class="overlay hidden">
+  <h2>Settings</h2>
+ <!--<button id="toggleSound" class="primary-btn">Sound: ON</button>---> 
+  <button id="backToMenu" class="primary-btn">Back to Main Menu</button>
+  <button id="closeSettings" class="primary-btn">Close</button>
 </div>
 
-<div id="inkBar"><div id="ink"></div></div>
+<!-- UI & Canvas -->
+<div id="gameWrap">
+  <div id="inkBar"><div id="ink"></div></div>
+  <canvas id="game"></canvas>
+  <div id="message"></div>
+  <button id="restartBtn" onclick="restart()">Restart</button>
+</div>
 
-<canvas id="game" width="600" height="600"></canvas>
-<div id="message"></div>
+<!-- 結束畫面 Overlay -->
+<div id="endScreen" class="overlay hidden">
+  <h1 id="endTitle">You Win!!</h1>
+  <p id="endScore">Your score: 0</p>
+
+<button id="endRetry" class="primary-btn">Retry</button>
+
+</div>
+<div id="rotateBlock" class="overlay hidden">
+  <h2>Please rotate your device</h2>
+  <p>This game works best in portrait mode.</p>
+</div>
 
 <script>
+
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-const inkBar = document.getElementById("ink");
+
+const inkBar = document.getElementById("inkBar");
+const inkFill = document.getElementById("ink");
 const message = document.getElementById("message");
+const restartBtn = document.getElementById("restartBtn");
+
+const titleScreen = document.getElementById("titleScreen");
+const endScreen = document.getElementById("endScreen");
+const endTitle = document.getElementById("endTitle");
+const endScore = document.getElementById("endScore");
+const endRetry = document.getElementById("endRetry");
+
+const settingsBtn = document.getElementById("settingsBtn");
+const settingsMenu = document.getElementById("settingsMenu");
+const backToMenuBtn = document.getElementById("backToMenu");
+const closeSettingsBtn = document.getElementById("closeSettings");
+const rotateBlock = document.getElementById("rotateBlock");
+let MAZE_PIXEL_SIZE = 720;
+
+//checkOrientation();
+//titleScreen.style.display = "block";
+window.addEventListener("load", () => {
+  checkOrientation();
+  titleScreen.style.display = "block";
+});
 
 const DIFFICULTY = {
-  easy:   { size: 15, factor: 0.55 },
-  normal: { size: 21, factor: 0.42 },
-  hard:   { size: 31, factor: 0.30 }
+  easy: { size: 15, factor: 0.53 },
+  normal: { size: 21, factor: 0.38 },
+  hard: { size: 31, factor: 0.27 }
 };
-
+//let firstGameLoadReported = false;
 let currentDifficulty = "easy";
-let size, cellSize;
-let maze;
-let startCell, endCell;
+let size, cellSize, maze, startCell, endCell;
+//const MAZE_PIXEL_SIZE = 720; // 迷宮固定顯示大小
+/*const MAZE_PIXEL_SIZE = Math.min(
+  720,
+  window.innerWidth * 0.9,
+  window.innerHeight * 0.75
+);
+*/
 
-let path = [];
-let ink = 0;
-let maxInk = 0;
-let visitCount = [];
+const gameWrap = document.getElementById("gameWrap");
+let path = [], visitCount = [], ink = 0, maxInk = 0, steps = 0;
+let isDrawing = false, hasStarted = false;
+let startTime = 0;
+let gamePaused = false;
+let gameOver = false;
 
-let isDrawing = false;
-let hasStarted = false;
+function checkOrientation() {
+  const isMobile = window.innerWidth < 900;
+  const isLandscape = window.innerWidth > window.innerHeight;
+  const inGame = gameWrap.style.display === "flex";
 
-/* ---------- 控制 ---------- */
+  if (isMobile && isLandscape) {
+    rotateBlock.classList.remove("hidden");
+    gamePaused = true;
+    isDrawing = false;
+  } else {
+    rotateBlock.classList.add("hidden");
 
-function setDifficulty(d) {
-  currentDifficulty = d;
-  startGame();
+    if (!gameOver) {
+      gamePaused = false;
+    }
+
+    if (!gameOver && inGame && settingsMenu.classList.contains("hidden")) {
+    }
+  }
+}
+window.addEventListener("resize", checkOrientation);
+window.addEventListener("orientationchange", checkOrientation);
+
+// 開始遊戲
+
+function startGame() {
+  titleScreen.style.display = "none";
+  endScreen.classList.add("hidden");
+  endScreen.style.display = "none";
+
+  gameWrap.style.display = "flex";
+  canvas.style.display = "block";
+  inkBar.style.display = "block";
+  restartBtn.style.display = "none";
+
+  const d = DIFFICULTY[currentDifficulty];
+  size = d.size;
+
+  MAZE_PIXEL_SIZE = Math.min(
+  720,
+  window.innerWidth * 0.9,
+  window.innerHeight * 0.75
+);
+
+  cellSize = MAZE_PIXEL_SIZE / size;
+  canvas.width = MAZE_PIXEL_SIZE;
+  canvas.height = MAZE_PIXEL_SIZE;
+
+  maze = generateMaze(size);
+  startCell = { x: 1, y: 1 };
+  endCell = { x: size - 2, y: size - 2 };
+
+  path = [];
+  steps = 0;
+  visitCount = Array.from({ length: size }, () => Array(size).fill(0));
+  maxInk = Math.floor(size * size * d.factor);
+  ink = maxInk;
+
+  hasStarted = false;
+  isDrawing = false;
+  gamePaused = false;
+  gameOver = false;
+
+  startTime = Date.now();
+
+   updateInk();
+  message.textContent = "Start from the arrow";
+  draw();
+
+  gamePaused = false;
+  checkOrientation();
+  if (!gamePaused) {
+  }
 }
 
 function restart() {
   startGame();
 }
 
-/* ---------- 初始化 ---------- */
-
-function startGame() {
-  const d = DIFFICULTY[currentDifficulty];
-  size = d.size;
-  maxInk = Math.floor(d.size * d.size * d.factor);
-  ink = maxInk;
-
-  cellSize = canvas.width / size;
-  maze = generateMaze(size);
-
-  startCell = { x: 1, y: 1 };
-  endCell = { x: size - 2, y: size - 2 };
-
-  path = [];
-  visitCount = Array.from({length:size}, () => Array(size).fill(0));
-
-  hasStarted = false;
-  isDrawing = false;
-
-  updateInk();
-  message.textContent = "從箭頭開始拖動";
-  draw();
+// 設定難度
+function setDifficulty(d) {
+  currentDifficulty = d;
+  document.querySelectorAll(".difficultyBtn").forEach(b => b.classList.remove("active"));
+  document.querySelector(`.difficultyBtn[onclick*="${d}"]`).classList.add("active");
 }
 
-/* ---------- 迷宮 ---------- */
-
+// Maze 生成
 function generateMaze(n) {
   const m = Array.from({ length: n }, () => Array(n).fill(1));
 
@@ -148,44 +476,81 @@ function generateMaze(n) {
       }
     }
   }
-  carve(1,1);
+
+  carve(1, 1);
+
+  // 保證起點與終點可走
+  m[1][1] = 0;
+  m[n - 2][n - 2] = 0;
+
   return m;
 }
 
 function shuffle(a) {
-  return a.sort(() => Math.random() - 0.5);
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
-/* ---------- 滑鼠 ---------- */
+// 事件綁定
+canvas.addEventListener("mousedown", e => handleDown(e));
+canvas.addEventListener("mousemove", e => handleMove(e));
+canvas.addEventListener("mouseup", () => isDrawing = false);
+canvas.addEventListener("mouseleave", () => isDrawing = false);
 
-canvas.addEventListener("mousedown", e => {
+canvas.addEventListener("touchstart", e => {
+  e.preventDefault();
+  handleDown(e.touches[0]);
+}, { passive: false });
+
+canvas.addEventListener("touchmove", e => {
+  e.preventDefault();
+  handleMove(e.touches[0]);
+}, { passive: false });
+
+canvas.addEventListener("touchend", () => isDrawing = false);
+
+// 開始畫
+function handleDown(e) {
+
+
+  if (gamePaused || gameOver) return;
+
   const cell = getCell(e);
-
+  if (!isValidCell(cell)) return;
   if (!hasStarted) {
-    if (!sameCell(cell, startCell)) return;
-    path.push(startCell);
-    visitCount[startCell.y][startCell.x]++;
-    hasStarted = true;
-    ink = maxInk;
-    message.textContent = "";
-  }
+  if (!sameCell(cell, startCell)) return;
+
+  path.push({ x: startCell.x, y: startCell.y });
+  visitCount[startCell.y][startCell.x] = 1;
+  hasStarted = true;
+  ink = maxInk;
+  message.textContent = "";
+}
 
   isDrawing = true;
   updateInk();
   draw();
-});
+  checkState();
+}
 
-canvas.addEventListener("mousemove", e => {
-  if (!isDrawing || ink <= 0) return;
+// 移動畫
+function handleMove(e) {
+  if (gamePaused || gameOver || !isDrawing) return;
 
   const cell = getCell(e);
+  if (!isValidCell(cell)) return;
+
   const last = path[path.length - 1];
+  if (!last) return;
 
-  // 不能穿牆
-  if (!maze[cell.y] || maze[cell.y][cell.x] === 1) return;
+  // 牆不能走
+  if (maze[cell.y][cell.x] === 1) return;
 
-  // 正常相鄰或斜角容錯
   let next = null;
+
   if (isAdjacent(cell, last)) {
     next = cell;
   } else {
@@ -193,57 +558,107 @@ canvas.addEventListener("mousemove", e => {
     if (forgiven) next = forgiven;
   }
 
-  if (next) {
-    path.push(next);
-    visitCount[next.y][next.x]++;
-    ink--;
-    updateInk();
-    draw();
-    checkState();
-  }
-});
+  if (!next) return;
 
-canvas.addEventListener("mouseup", () => {
-  isDrawing = false;
-});
+  // 不重複加同一格
+  if (sameCell(next, last)) return;
 
-/* ---------- 斜角容錯 ---------- */
+  path.push({ x: next.x, y: next.y });
+  visitCount[next.y][next.x]++;
+  ink--;
+  steps++;
+
+  if (ink < 0) ink = 0;
+
+  updateInk();
+  draw();
+  checkState();
+}
 
 function getForgivenStep(from, to) {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
+
   if (Math.abs(dx) === 1 && Math.abs(dy) === 1) {
-    const option1 = { x: from.x + dx, y: from.y };
-    const option2 = { x: from.x, y: from.y + dy };
-    if (maze[option1.y]?.[option1.x] === 0) return option1;
-    if (maze[option2.y]?.[option2.x] === 0) return option2;
+    const o1 = { x: from.x + dx, y: from.y };
+    const o2 = { x: from.x, y: from.y + dy };
+
+    if (isValidCell(o1) && maze[o1.y][o1.x] === 0) return o1;
+    if (isValidCell(o2) && maze[o2.y][o2.x] === 0) return o2;
   }
+
   return null;
 }
 
-/* ---------- 判斷 ---------- */
-
+// 結束判斷
 function checkState() {
-  const p = path[path.length - 1];
+  if (gameOver) return;
 
-  if (sameCell(p, endCell)) {
-    message.textContent = "✔ 到達出口（同難度再來）";
-    endRound();
-  } else if (ink <= 0) {
-    message.textContent = "墨水用完（可以按重新開始）";
-    isDrawing = false; // 停止畫線
-    hasStarted = true; // 保留路徑
+  const p = path[path.length - 1];
+  if (!p) return;
+
+ if (sameCell(p, endCell)) {
+
+  const timeUsed = Math.floor((Date.now() - startTime) / 1000);
+
+  const score = Math.floor(
+    (ink / maxInk) * 1000 +
+    Math.max(0, 500 - timeUsed * 5)
+  );
+
+  showEndScreen(true, score);
+  return;
+}
+
+  if (ink <= 0) {
+    ink = 0;
+    updateInk();
+    const timeUsed = Math.floor((Date.now() - startTime) / 1000);
+	const score = Math.floor((ink / maxInk) * 1000 + Math.max(0, 500 - timeUsed * 5));
+    showEndScreen(false, score);
   }
 }
 
-function endRound() {
+function showEndScreen(won, score) {
+
+  if (gameOver) return;
+
+  gameOver = true;
+  gamePaused = true;
   isDrawing = false;
-  hasStarted = false;
-  setTimeout(startGame, 900);
+
+
+  endTitle.textContent = won ? "You Win!!" : "It's Almost There";
+
+  const timeUsed = Math.floor((Date.now() - startTime) / 1000);
+
+  endScore.innerHTML =
+    "Your score: " + score +
+    "<br>You used " + timeUsed + " seconds";
+  endScreen.classList.remove("hidden");
+  endScreen.style.display = "flex";
 }
 
-/* ---------- 工具 ---------- */
+// Retry 行為
+endRetry.onclick = () => {
+  endScreen.classList.add("hidden");
+  endScreen.style.display = "none";
+  settingsMenu.classList.add("hidden");
 
+
+  gameWrap.style.display = "none";
+  canvas.style.display = "none";
+  inkBar.style.display = "none";
+  restartBtn.style.display = "none";
+  message.textContent = "";
+
+  gamePaused = false;
+  gameOver = false;
+  isDrawing = false;
+
+  titleScreen.style.display = "block";
+};
+// 工具
 function getCell(e) {
   const r = canvas.getBoundingClientRect();
   return {
@@ -257,69 +672,123 @@ function isAdjacent(a, b) {
 }
 
 function sameCell(a, b) {
-  return a.x === b.x && a.y === b.y;
+  return !!a && !!b && a.x === b.x && a.y === b.y;
+}
+
+function isValidCell(c) {
+  return c && c.x >= 0 && c.y >= 0 && c.x < size && c.y < size;
 }
 
 function updateInk() {
-  inkBar.style.width = (ink / maxInk * 100) + "%";
+  if (maxInk <= 0) return;
+  inkFill.style.width = (ink / maxInk * 100) + "%";
 }
 
-/* ---------- 繪圖 ---------- */
-
+// 繪圖
 function draw() {
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // 牆
-  for (let y=0;y<size;y++) {
-    for (let x=0;x<size;x++) {
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
       if (maze[y][x] === 1) {
-        ctx.fillStyle = "#cfd8dc";
-        ctx.fillRect(x*cellSize, y*cellSize, cellSize, cellSize);
+        ctx.fillStyle = "#37474f";
+        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
       }
     }
   }
 
-  // 走過的格子 → 顏色明顯
-  for (let y=0;y<size;y++) {
-    for (let x=0;x<size;x++) {
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
       if (visitCount[y][x] > 0) {
-        const alpha = Math.min(0.5 + 0.15*(visitCount[y][x]-1), 1);
-        ctx.fillStyle = `rgba(50,255,50,${alpha})`;
-        ctx.fillRect(x*cellSize, y*cellSize, cellSize, cellSize);
+        const alpha = Math.min(0.5 + 0.15 * (visitCount[y][x] - 1), 1);
+        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        gradient.addColorStop(0, "red");
+        gradient.addColorStop(0.16, "orange");
+        gradient.addColorStop(0.33, "yellow");
+        gradient.addColorStop(0.5, "green");
+        gradient.addColorStop(0.66, "cyan");
+        gradient.addColorStop(0.83, "blue");
+        gradient.addColorStop(1, "violet");
+
+        ctx.fillStyle = gradient;
+        ctx.globalAlpha = alpha;
+        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+        ctx.globalAlpha = 1;
       }
     }
   }
 
   // 終點
-  ctx.fillStyle = "#ffb74d";
-  ctx.fillRect(
-    endCell.x*cellSize,
-    endCell.y*cellSize,
-    cellSize,
-    cellSize
-  );
+ ctx.fillStyle = "#ff7043";
+ctx.shadowColor = "#ff7043";
+ctx.shadowBlur = 18;
+ctx.fillRect(endCell.x * cellSize, endCell.y * cellSize, cellSize, cellSize);
+ctx.shadowBlur = 0;
 
   // 起點箭頭
   if (!hasStarted) drawStartArrow();
 }
 
 function drawStartArrow() {
-  const cx = startCell.x*cellSize + cellSize/2;
-  const cy = startCell.y*cellSize + cellSize/2;
+  const cx = startCell.x * cellSize + cellSize / 2;
+  const cy = startCell.y * cellSize + cellSize / 2;
   const s = cellSize / 3;
+
   ctx.fillStyle = "#42a5f5";
   ctx.beginPath();
-  ctx.moveTo(cx - s/2, cy - s);
+  ctx.moveTo(cx - s / 2, cy - s);
   ctx.lineTo(cx + s, cy);
-  ctx.lineTo(cx - s/2, cy + s);
+  ctx.lineTo(cx - s / 2, cy + s);
   ctx.closePath();
   ctx.fill();
 }
 
-/* ---------- 啟動 ---------- */
+// 設定選單
+settingsBtn.onclick = () => {
+  if (gameOver) return;
+  gamePaused = true;
 
-startGame();
+
+  settingsMenu.classList.remove("hidden");
+};
+
+closeSettingsBtn.onclick = () => {
+  gamePaused = false;
+  settingsMenu.classList.add("hidden");
+
+  const inGame = gameWrap.style.display === "flex";
+  //const inGame = gameWrap && gameWrap.style.display === "flex";
+
+  if (!gameOver && inGame) {
+  }
+};
+
+backToMenuBtn.onclick = () => {
+  gamePaused = false;
+  gameOver = false;
+  isDrawing = false;
+
+  settingsMenu.classList.add("hidden");
+  endScreen.classList.add("hidden");
+  endScreen.style.display = "none";
+
+  gameWrap.style.display = "none";
+  canvas.style.display = "none";
+  inkBar.style.display = "none";
+  restartBtn.style.display = "none";
+  message.textContent = "";
+  titleScreen.style.display = "block";
+};
+window.addEventListener("wheel", (event) => event.preventDefault(), {
+  passive: false,
+});
+
+window.addEventListener("keydown", (event) => {
+  if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "].includes(event.key)) {
+    event.preventDefault();
+  }
+});
+
 </script>
-
 </body>
-</html>
+</html>  
